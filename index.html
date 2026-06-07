@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script type="module" src="/@vite/client"></script>
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CreatorVault – Sophia Bennett</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #EC4899; --secondary: #F9A8D4; --accent: #BE185D;
+      --bg: #FFF8FC; --card: #FFFFFF; --text: #111827; --text-muted: #6B7280;
+      --border: rgba(236,72,153,0.15); --glass-bg: rgba(255,255,255,0.75);
+      --glass-border: rgba(236,72,153,0.2);
+      --shadow: 0 4px 24px rgba(236,72,153,0.12);
+      --shadow-lg: 0 8px 40px rgba(236,72,153,0.2);
+    }
+    body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; overflow-x:hidden; }
+
+    /* NAVBAR */
+    nav {
+      position:fixed; top:0; left:0; right:0; z-index:100;
+      background:rgba(255,248,252,0.88); backdrop-filter:blur(20px);
+      -webkit-backdrop-filter:blur(20px);
+      border-bottom:1px solid var(--glass-border);
+      height:64px; display:flex; align-items:center;
+      justify-content:space-between; padding:0 1.5rem;
+    }
+    .nav-brand {
+      font-size:1.4rem; font-weight:800;
+      background:linear-gradient(135deg,var(--primary),var(--accent));
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+      background-clip:text; text-decoration:none;
+    }
+    .nav-links { display:flex; gap:0.25rem; align-items:center; }
+    .nav-links a {
+      text-decoration:none; color:var(--text-muted); font-weight:500;
+      font-size:0.9rem; padding:0.5rem 1rem; border-radius:8px; transition:all 0.2s;
+    }
+    .nav-links a:hover, .nav-links a.active { color:var(--primary); background:rgba(236,72,153,0.08); }
+    .nav-links a.btn-nav {
+      background:linear-gradient(135deg,var(--primary),var(--accent));
+      color:white !important; border-radius:20px; padding:0.5rem 1.25rem;
+    }
+    .nav-links a.btn-nav:hover { opacity:0.9; transform:translateY(-1px); }
+    .hamburger { display:none; flex-direction:column; gap:5px; cursor:pointer; padding:8px; border:none; background:none; }
+    .hamburger span { display:block; width:24px; height:2px; background:var(--text); border-radius:2px; transition:all 0.3s; }
+
+    /* MOBILE MENU */
+    .mobile-overlay {
+      position:fixed; inset:0; background:rgba(17,24,39,0.4);
+      z-index:150; opacity:0; pointer-events:none; transition:opacity 0.3s;
+    }
+    .mobile-overlay.open { opacity:1; pointer-events:all; }
+    .mobile-menu {
+      position:fixed; top:0; right:-100%;
+      width:min(320px,85vw); height:100vh;
+      background:rgba(255,248,252,0.97); backdrop-filter:blur(30px);
+      border-left:1px solid var(--glass-border); z-index:200;
+      transition:right 0.35s cubic-bezier(0.4,0,0.2,1);
+      padding:2rem 1.5rem; display:flex; flex-direction:column;
+    }
+    .mobile-menu.open { right:0; }
+    .mobile-menu-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem; }
+    .mobile-menu-close {
+      background:rgba(236,72,153,0.1); border:none; width:36px; height:36px;
+      border-radius:50%; cursor:pointer; font-size:1.1rem; color:var(--primary);
+      display:flex; align-items:center; justify-content:center;
+    }
+    .mobile-links { display:flex; flex-direction:column; gap:0.5rem; }
+    .mobile-links a {
+      text-decoration:none; color:var(--text); font-weight:500; font-size:1.05rem;
+      padding:0.9rem 1rem; border-radius:12px; transition:all 0.2s;
+      border:1px solid transparent;
+    }
+    .mobile-links a:hover { color:var(--primary); background:rgba(236,72,153,0.06); border-color:var(--border); }
+
+    /* HERO */
+    .hero {
+      margin-top:64px; position:relative;
+      display:flex; flex-direction:column; align-items:center;
+      overflow:hidden; padding-bottom:4rem;
+    }
+    /* COVER IMAGE */
+    .hero-cover {
+      width:100%; height:280px; position:relative; overflow:hidden;
+      background:linear-gradient(135deg,#FCE7F3 0%,#FDF2F8 40%,#EDE9FE 100%);
+    }
+    @media(max-width:480px){ .hero-cover{height:200px} }
+    .hero-cover img {
+      width:100%; height:100%; object-fit:cover; display:block;
+    }
+    .hero-cover-gradient {
+      position:absolute; bottom:0; left:0; right:0; height:80px;
+      background:linear-gradient(to bottom, transparent, #FFF8FC);
+    }
+    .hero-bg-blob {
+      position:absolute; border-radius:50%; filter:blur(60px); opacity:0.4;
+    }
+    .blob1 { width:400px; height:400px; background:var(--secondary); top:-100px; right:-50px; }
+    .blob2 { width:300px; height:300px; background:#DDD6FE; bottom:-50px; left:-50px; }
+    .hero-content { position:relative; z-index:2; text-align:center; max-width:680px; width:100%; padding:0 1.5rem; }
+
+    /* AVATAR RING ANIMATION */
+    @keyframes ringPulse {
+      0%   { transform:scale(1);   opacity:0.85; }
+      50%  { transform:scale(1.18); opacity:0.35; }
+      100% { transform:scale(1);   opacity:0.85; }
+    }
+    @keyframes ringPulse2 {
+      0%   { transform:scale(1);   opacity:0.5; }
+      50%  { transform:scale(1.32); opacity:0.12; }
+      100% { transform:scale(1);   opacity:0.5; }
+    }
+    .hero-avatar-wrap {
+      margin:-64px auto 1.25rem; position:relative;
+      width:128px; height:128px;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .hero-avatar-wrap::before,
+    .hero-avatar-wrap::after {
+      content:''; position:absolute; border-radius:50%;
+      border:3px solid var(--primary);
+      width:100%; height:100%; top:0; left:0;
+    }
+    .hero-avatar-wrap::before { animation:ringPulse 2s ease-in-out infinite; }
+    .hero-avatar-wrap::after  { animation:ringPulse2 2s ease-in-out infinite 0.4s; }
+
+    .hero-avatar-placeholder {
+      width:128px; height:128px; border-radius:50%;
+      background:linear-gradient(135deg,var(--primary),var(--accent));
+      border:4px solid white; box-shadow:var(--shadow-lg);
+      display:flex; align-items:center; justify-content:center;
+      font-size:3rem; color:white; font-weight:700;
+      position:relative; z-index:1; flex-shrink:0;
+    }
+    .hero-avatar-img {
+      width:128px; height:128px; border-radius:50%;
+      object-fit:cover; border:4px solid white; box-shadow:var(--shadow-lg);
+      display:block; position:relative; z-index:1; flex-shrink:0;
+    }
+    .hero-verified {
+      position:absolute; bottom:6px; right:6px; z-index:2;
+      width:26px; height:26px; background:var(--primary);
+      border-radius:50%; border:3px solid white;
+      display:flex; align-items:center; justify-content:center;
+      font-size:0.6rem; color:white;
+    }
+    .hero h1 { font-size:clamp(2.2rem,5.5vw,3.4rem); font-weight:800; color:var(--text); margin-bottom:0.75rem; line-height:1.1; }
+    .hero-bio { font-size:1.05rem; color:var(--text-muted); margin-bottom:2rem; line-height:1.75; max-width:500px; margin-left:auto; margin-right:auto; }
+    .hero-buttons { display:flex; gap:1rem; justify-content:center; flex-wrap:wrap; }
+    .btn {
+      display:inline-flex; align-items:center; gap:0.5rem;
+      padding:0.85rem 2rem; border-radius:50px; font-weight:600;
+      font-size:0.95rem; cursor:pointer; border:none; text-decoration:none;
+      transition:all 0.25s;
+    }
+    .btn-primary {
+      background:linear-gradient(135deg,var(--primary),var(--accent));
+      color:white; box-shadow:0 4px 18px rgba(236,72,153,0.38);
+    }
+    .btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(236,72,153,0.48); }
+    .btn-outline {
+      background:rgba(255,255,255,0.85); color:var(--primary);
+      border:2px solid var(--primary); backdrop-filter:blur(10px);
+    }
+    .btn-outline:hover { background:var(--primary); color:white; transform:translateY(-2px); }
+
+    /* STATS */
+    .stats-section { padding:1.5rem 1.25rem 2rem; max-width:520px; margin:0 auto; }
+    .stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:0.65rem; }
+    .stat-card {
+      background:linear-gradient(135deg,rgba(255,255,255,0.82),rgba(252,231,243,0.55));
+      backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+      border:1.5px solid rgba(236,72,153,0.18);
+      border-radius:14px; padding:0.9rem 0.5rem 0.85rem; text-align:center;
+      box-shadow:0 2px 12px rgba(236,72,153,0.1); transition:all 0.3s;
+      position:relative; overflow:hidden;
+    }
+    .stat-card::after {
+      content:''; position:absolute; bottom:0; left:0; right:0; height:2.5px;
+      background:linear-gradient(90deg,var(--primary),var(--secondary));
+    }
+    .stat-card:hover { transform:translateY(-3px); box-shadow:0 6px 20px rgba(236,72,153,0.18); }
+    .stat-number {
+      font-size:1.45rem; font-weight:800;
+      background:linear-gradient(135deg,var(--primary),var(--accent));
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+      background-clip:text; margin-bottom:0.2rem; line-height:1;
+    }
+    .stat-label { font-size:0.62rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:0.05em; }
+
+    /* FEED */
+    .feed-section { padding:2rem 1.5rem 5rem; max-width:1200px; margin:0 auto; }
+    .section-header { margin-bottom:2rem; }
+    .section-title { font-size:1.7rem; font-weight:700; }
+    .section-title span { background:linear-gradient(135deg,var(--primary),var(--accent)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .feed-grid { columns:1; column-gap:1.25rem; max-width:520px; margin:0 auto; }
+    .feed-card {
+      break-inside:avoid; margin-bottom:1.25rem; background:var(--card);
+      border-radius:16px; overflow:hidden; box-shadow:var(--shadow);
+      border:1px solid var(--border); transition:all 0.3s; position:relative;
+    }
+    .feed-card:hover { transform:translateY(-4px); box-shadow:var(--shadow-lg); }
+    .img-wrap { position:relative; overflow:hidden; }
+    .feed-card-img { width:100%; display:block; object-fit:cover; transition:transform 0.3s; }
+    .feed-card:hover .feed-card-img:not(.locked) { transform:scale(1.03); }
+    .feed-card-img.locked { filter:blur(16px); transform:scale(1.08); }
+    .lock-overlay {
+      position:absolute; inset:0; display:flex; flex-direction:column;
+      align-items:center; justify-content:center; gap:0.75rem;
+    }
+    .lock-icon {
+      width:48px; height:48px; background:rgba(255,255,255,0.95);
+      border-radius:50%; display:flex; align-items:center;
+      justify-content:center; font-size:1.3rem;
+      box-shadow:0 4px 16px rgba(0,0,0,0.12);
+    }
+    .lock-upgrade {
+      background:linear-gradient(135deg,var(--primary),var(--accent));
+      color:white; border:none; border-radius:20px;
+      padding:0.45rem 1.2rem; font-size:0.8rem; font-weight:600;
+      cursor:pointer; text-decoration:none; transition:all 0.2s;
+    }
+    .lock-upgrade:hover { opacity:0.9; transform:scale(1.04); }
+    .play-overlay {
+      position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+      width:50px; height:50px; background:rgba(255,255,255,0.92);
+      border-radius:50%; display:flex; align-items:center; justify-content:center;
+      box-shadow:0 4px 20px rgba(0,0,0,0.18);
+    }
+    .play-triangle { width:0; height:0; border-top:9px solid transparent; border-bottom:9px solid transparent; border-left:15px solid var(--primary); margin-left:3px; }
+    .duration-chip {
+      position:absolute; bottom:52px; right:0.65rem;
+      background:rgba(0,0,0,0.72); color:white;
+      font-size:0.68rem; font-weight:600; padding:0.18rem 0.5rem; border-radius:5px;
+    }
+    .top-badge { position:absolute; top:0.6rem; left:0.6rem; }
+    .badge-premium {
+      display:inline-flex; align-items:center; gap:0.2rem;
+      background:linear-gradient(135deg,var(--primary),var(--accent));
+      color:white; font-size:0.62rem; font-weight:700;
+      padding:0.2rem 0.55rem; border-radius:20px; text-transform:uppercase; letter-spacing:0.05em;
+    }
+    .badge-free { display:inline-flex; background:rgba(16,185,129,0.14); color:#059669; font-size:0.62rem; font-weight:700; padding:0.2rem 0.55rem; border-radius:20px; text-transform:uppercase; }
+    .badge-video { display:inline-flex; background:rgba(99,102,241,0.12); color:#4F46E5; font-size:0.62rem; font-weight:700; padding:0.2rem 0.55rem; border-radius:20px; }
+    .feed-card-body { padding:0.75rem 0.9rem 0.9rem; }
+    .feed-card-title { font-size:0.88rem; font-weight:600; color:var(--text); margin-bottom:0.3rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .feed-card-meta { display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap; }
+
+    /* FOOTER */
+    footer { background:linear-gradient(135deg,#1F0A13 0%,#2D0E1E 100%); color:rgba(255,255,255,0.65); text-align:center; padding:2.5rem 1.5rem; }
+    .footer-brand { font-size:1.4rem; font-weight:800; background:linear-gradient(135deg,var(--secondary),var(--primary)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:0.75rem; display:block; }
+    footer p { font-size:0.85rem; }
+
+    /* SKELETON */
+    .skel { background:linear-gradient(90deg,rgba(236,72,153,0.07) 25%,rgba(236,72,153,0.14) 50%,rgba(236,72,153,0.07) 75%); background-size:200% 100%; animation:shimmer 1.5s infinite; border-radius:12px; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+    .skel-card { break-inside:avoid; margin-bottom:1.25rem; border-radius:16px; overflow:hidden; }
+
+    /* TOAST */
+    .toast { position:fixed; bottom:2rem; right:2rem; background:var(--text); color:white; padding:1rem 1.5rem; border-radius:12px; font-size:0.9rem; font-weight:500; z-index:9999; opacity:0; transform:translateY(16px); transition:all 0.3s; max-width:320px; }
+    .toast.show { opacity:1; transform:translateY(0); }
+
+    /* EMPTY */
+    .empty-state { text-align:center; padding:4rem 2rem; color:var(--text-muted); }
+    .empty-state h3 { font-size:1.2rem; margin-bottom:0.5rem; color:var(--text); }
+
+    @media(max-width:768px){ .nav-links{display:none} .hamburger{display:flex} }
+    @media(max-width:480px){ .stats-grid{gap:0.6rem} .stat-card{padding:1.2rem 0.6rem} .stat-number{font-size:1.5rem} .stat-label{font-size:0.7rem} }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="./index.html" class="nav-brand">CreatorVault</a>
+  <div class="nav-links" id="navLinks">
+    <a href="./index.html" class="active">Home</a>
+    <a href="./content.html">Content</a>
+    <a href="./account.html#membership">Membership</a>
+    <a href="./account.html" class="btn-nav" id="navAccountLink">Login / Register</a>
+  </div>
+  <button class="hamburger" id="hamburgerBtn" aria-label="Open menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<div class="mobile-overlay" id="mobileOverlay"></div>
+<div class="mobile-menu" id="mobileMenu">
+  <div class="mobile-menu-header">
+    <span class="nav-brand">CreatorVault</span>
+    <button class="mobile-menu-close" id="menuClose">✕</button>
+  </div>
+  <div class="mobile-links">
+    <a href="./index.html">Home</a>
+    <a href="./content.html">Content</a>
+    <a href="./account.html">Account</a>
+  </div>
+</div>
+
+<section class="hero">
+  <div class="hero-cover" id="heroCover">
+    <img src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1400&q=80&fit=crop" alt="Cover" id="heroCoverImg" />
+    <div class="hero-bg-blob blob1"></div>
+    <div class="hero-bg-blob blob2"></div>
+    <div class="hero-cover-gradient"></div>
+  </div>
+  <div class="hero-content">
+    <div class="hero-avatar-wrap">
+      <div class="hero-avatar-placeholder" id="heroAvatarPlaceholder">S</div>
+      <div class="hero-verified">✓</div>
+    </div>
+    <h1>Sophia Bennett</h1>
+    <p class="hero-bio">Welcome to my exclusive vault of premium content. Behind these doors lies my most intimate and creative work — photos, videos, and moments crafted just for you.</p>
+    <div class="hero-buttons">
+      <a href="./content.html" class="btn btn-primary">✦ Explore Content</a>
+      <a href="./account.html" class="btn btn-outline">Subscribe Now</a>
+    </div>
+  </div>
+</section>
+
+<section class="stats-section">
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-number" id="statPhotos">—</div>
+      <div class="stat-label">Total Photos</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" id="statVideos">—</div>
+      <div class="stat-label">Total Videos</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" id="statSubs">—</div>
+      <div class="stat-label">Subscribers</div>
+    </div>
+  </div>
+</section>
+
+<section class="feed-section">
+  <div class="section-header">
+    <h2 class="section-title">Latest <span>Content</span></h2>
+  </div>
+  <div id="feedContainer">
+    <div class="feed-grid">
+      <div class="skel-card"><div class="skel" style="height:200px"></div><div class="skel" style="height:12px;margin:10px 12px;border-radius:6px"></div><div class="skel" style="height:10px;margin:6px 12px 12px;width:55%;border-radius:6px"></div></div>
+      <div class="skel-card"><div class="skel" style="height:270px"></div><div class="skel" style="height:12px;margin:10px 12px;border-radius:6px"></div><div class="skel" style="height:10px;margin:6px 12px 12px;width:40%;border-radius:6px"></div></div>
+      <div class="skel-card"><div class="skel" style="height:175px"></div><div class="skel" style="height:12px;margin:10px 12px;border-radius:6px"></div><div class="skel" style="height:10px;margin:6px 12px 12px;width:65%;border-radius:6px"></div></div>
+      <div class="skel-card"><div class="skel" style="height:240px"></div><div class="skel" style="height:12px;margin:10px 12px;border-radius:6px"></div><div class="skel" style="height:10px;margin:6px 12px 12px;width:50%;border-radius:6px"></div></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span class="footer-brand">CreatorVault</span>
+  <p>© 2025 Sophia Bennett. All rights reserved. Premium content for members only.</p>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const SUPABASE_URL = 'https://your-project.supabase.co';
+  const SUPABASE_ANON_KEY = 'your-anon-key';
+
+  const { createClient } = supabase;
+  const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const getSession = () => { try { return JSON.parse(localStorage.getItem('cv_session') || 'null'); } catch { return null; } };
+  const session = getSession();
+
+  function escHtml(s) { if(!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  // Update nav
+  if (session) {
+    document.getElementById('navAccountLink').textContent = session.user_name ? session.user_name.split(' ')[0] : 'Account';
+  }
+
+  // Mobile menu
+  const hamburger = document.getElementById('hamburgerBtn');
+  const mobileMenu = document.getElementById('mobileMenu');
+  const mobileOverlay = document.getElementById('mobileOverlay');
+  const menuClose = document.getElementById('menuClose');
+  const openMenu = () => { mobileMenu.classList.add('open'); mobileOverlay.classList.add('open'); document.body.style.overflow='hidden'; };
+  const closeMenu = () => { mobileMenu.classList.remove('open'); mobileOverlay.classList.remove('open'); document.body.style.overflow=''; };
+  hamburger.addEventListener('click', openMenu);
+  menuClose.addEventListener('click', closeMenu);
+  mobileOverlay.addEventListener('click', closeMenu);
+
+  async function loadStats() {
+    try {
+      const [pr, vr, sr] = await Promise.all([
+        db.from('photos').select('id', { count:'exact', head:true }),
+        db.from('videos').select('id', { count:'exact', head:true }),
+        db.from('site_settings').select('subscriber_count,profile_image_url,cover_image_url').limit(1).single()
+      ]);
+      document.getElementById('statPhotos').textContent = (pr.count ?? 0).toLocaleString();
+      document.getElementById('statVideos').textContent = (vr.count ?? 0).toLocaleString();
+      document.getElementById('statSubs').textContent = (sr.data?.subscriber_count ?? 0).toLocaleString();
+
+      // Apply cover image (override default if set in DB)
+      const coverUrl = sr.data?.cover_image_url;
+      if (coverUrl) {
+        document.getElementById('heroCoverImg').src = coverUrl;
+      }
+
+      // Apply profile image
+      const profileUrl = sr.data?.profile_image_url;
+      if (profileUrl) {
+        const placeholder = document.getElementById('heroAvatarPlaceholder');
+        const img = document.createElement('img');
+        img.src = profileUrl;
+        img.alt = 'Sophia Bennett';
+        img.className = 'hero-avatar-img';
+        placeholder.replaceWith(img);
+      }
+    } catch {}
+  }
+
+  async function loadFeed() {
+    const container = document.getElementById('feedContainer');
+    const isPremium = session && (session.membership === 'premium' || session.membership === 'vip' || session.membership === 'basic');
+
+    try {
+      const [pr, vr] = await Promise.all([
+        db.from('photos').select('*').order('created_at', { ascending:false }).limit(20),
+        db.from('videos').select('*').order('created_at', { ascending:false }).limit(20)
+      ]);
+
+      const photos = (pr.data || []).map(p => ({...p, _type:'photo'}));
+      const videos = (vr.data || []).map(v => ({...v, _type:'video'}));
+      const all = [...photos, ...videos].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+
+      if (!all.length) {
+        container.innerHTML = '<div class="empty-state"><h3>No content yet</h3><p>Check back soon!</p></div>';
+        return;
+      }
+
+      const heights = [170,200,230,190,260,210,180,240];
+      const cards = all.map((item,i) => {
+        const locked = item.premium && !isPremium;
+        const h = heights[i % heights.length];
+        if (item._type === 'photo') {
+          return `<div class="feed-card">
+            <div class="img-wrap">
+              <img src="${escHtml(item.url)}" alt="${escHtml(item.title)}" class="feed-card-img${locked?' locked':''}" style="height:${h}px" onerror="this.style.background='linear-gradient(135deg,#FCE7F3,#FDF2F8)';this.src=''" />
+              ${locked ? `<div class="lock-overlay"><div class="lock-icon">🔒</div><a href="./account.html" class="lock-upgrade">Upgrade</a></div>` : ''}
+              <div class="top-badge">${item.premium ? '<span class="badge-premium">⭐ Premium</span>' : ''}</div>
+            </div>
+            <div class="feed-card-body">
+              <div class="feed-card-title">${escHtml(item.title)}</div>
+              <div class="feed-card-meta">${item.premium ? '<span class="badge-premium">Premium</span>' : '<span class="badge-free">Free</span>'}</div>
+            </div>
+          </div>`;
+        } else {
+          return `<div class="feed-card">
+            <div class="img-wrap">
+              <img src="${escHtml(item.thumbnail_url)}" alt="${escHtml(item.title)}" class="feed-card-img${locked?' locked':''}" style="height:${h}px" onerror="this.style.background='linear-gradient(135deg,#EDE9FE,#DDD6FE)';this.src=''" />
+              ${!locked ? '<div class="play-overlay"><div class="play-triangle"></div></div>' : `<div class="lock-overlay"><div class="lock-icon">🔒</div><a href="./account.html" class="lock-upgrade">Upgrade</a></div>`}
+              ${item.duration ? `<span class="duration-chip">${escHtml(item.duration)}</span>` : ''}
+              <div class="top-badge">${item.premium ? '<span class="badge-premium">⭐ Premium</span>' : ''}</div>
+            </div>
+            <div class="feed-card-body">
+              <div class="feed-card-title">${escHtml(item.title)}</div>
+              <div class="feed-card-meta"><span class="badge-video">▶ Video</span>${item.premium ? '<span class="badge-premium">Premium</span>' : '<span class="badge-free">Free</span>'}</div>
+            </div>
+          </div>`;
+        }
+      }).join('');
+
+      container.innerHTML = `<div class="feed-grid">${cards}</div>`;
+    } catch(e) {
+      container.innerHTML = '<div class="empty-state"><h3>Could not load content</h3><p>Please configure your Supabase credentials.</p></div>';
+    }
+  }
+
+  loadStats();
+  loadFeed();
+</script>
+<script src="https://replit-cdn.com/replit-pill/replit-pill.global.js" data-repl-id="df04d81c-f319-4ea8-9745-3d4afadb740b"></script></body>
+</html>
